@@ -1,71 +1,53 @@
+from sklearn import feature_extraction
+from sklearn.feature_extraction.text import CountVectorizer  
 import numpy as np
-from gensim import corpora, models
-
-
-if __name__ == '__main__':
-    # 读入文本数据
-    f = open('fencioutput.txt', encoding='utf-8')  # 输入已经预处理后的文本
-    texts = [[word for word in line.split()] for line in f]
-    f.close()
-    M = len(texts)
-    print('文本数目：%d 个' % M)
-
-    # 建立词典
-    dictionary = corpora.Dictionary(texts)
-    V = len(dictionary)
-    print('词的个数：%d 个' % V)
-
-    # 计算文本向量g
-    corpus = [dictionary.doc2bow(text) for text in texts]  # 每个text对应的稀疏向量
-
-    # 计算文档TF-IDF
-    corpus_tfidf = models.TfidfModel(corpus)[corpus]
-
-    # LDA模型拟合
-    num_topics = 10  # 定义主题数
-    lda = models.LdaModel(corpus_tfidf, num_topics=num_topics, id2word=dictionary,
-                          alpha=0.01, eta=0.01, minimum_probability=0.001,
-                          update_every=1, chunksize=100, passes=1)
-
-    # 所有文档的主题
-    doc_topic = [a for a in lda[corpus_tfidf]]
-    print('Document-Topic:')
-    print(doc_topic)
-
-    # 打印文档的主题分布
-    num_show_topic = 5  # 每个文档显示前几个主题
-    print('文档的主题分布：')
-    doc_topics = lda.get_document_topics(corpus_tfidf)  # 所有文档的主题分布
-    idx = np.arange(M)  # M为文本个数，生成从0开始到M-1的文本数组
-    for i in idx:
-        topic = np.array(doc_topics[i])
-        topic_distribute = np.array(topic[:, 1])
-        topic_idx = topic_distribute.argsort()[:-num_show_topic - 1:-1]  # 按照概率大小进行降序排列
-        print('第%d个文档的前%d个主题：' % (i, num_show_topic))
-        print(topic_idx)
-        print(topic_distribute[topic_idx])
-
-    # 每个主题的词分布
-    num_show_term = 15  # 每个主题显示几个词
-    for topic_id in range(num_topics):
-        print('主题#%d：\t' % topic_id)
-        term_distribute_all = lda.get_topic_terms(topicid=topic_id)  # 所有词的词分布
-        term_distribute = term_distribute_all[:num_show_term]  # 只显示前几个词
-        term_distribute = np.array(term_distribute)
-        term_id = term_distribute[:, 0].astype(np.int)
-        print('词：', end="")
-        for t in term_id:
-            print(dictionary.id2token[t], end=' ')
-        print('概率：', end="")
-        print(term_distribute[:, 1])
-
-    # 将主题-词写入一个文档 topword.txt，每个主题显示20个词
-    with open('ldatopic.txt', 'w', encoding='utf-8') as tw:
-        for topic_id in range(num_topics):
-            term_distribute_all = lda.get_topic_terms(topicid=topic_id, topn=20)
-            term_distribute = np.array(term_distribute_all)
-            term_id = term_distribute[:, 0].astype(np.int)
-            for t in term_id:
-                tw.write(dictionary.id2token[t] + " ")
-            tw.write("\n")
-
+import lda
+import sys
+import matplotlib.pyplot as plt
+np.set_printoptions(threshold=sys.maxsize)
+import collections
+if __name__ == "__main__":
+    corpus = []
+    for line in open('fencioutput.txt','r',encoding='utf-8').readlines():
+        corpus.append(line.strip())
+    print (corpus)
+    
+    vectorizer = CountVectorizer()
+    X = vectorizer.fit_transform(corpus)
+    word = vectorizer.get_feature_names()   # 所有的特征词，即关键词
+    #print (word)    
+    #print(X)
+    analyze = vectorizer.build_analyzer()  
+    weight = X.toarray()  
+    #print(weight)
+    
+    # 训练模型
+    model = lda.LDA(n_topics = 13, n_iter =100, random_state = 1,alpha=0.03,eta=0.01)
+    model.fit(np.asarray(weight))
+    
+    # 主题-词分布
+    topic_word = model.topic_word_  #生成主题以及主题中词的分布
+    #print("topic-word:\n", topic_word)
+    # 计算topN关键词
+    n = 10
+    for i, word_weight in enumerate(topic_word):  
+        #print("word_weight:\n", word_weight)
+        distIndexArr = np.argsort(word_weight)
+        #print("distIndexArr:\n", distIndexArr)
+        topN_index = distIndexArr[:-(n+1):-1]
+        #print("topN_index:\n", topN_index) # 权重最多的n个
+        topN_words = np.array(word)[topN_index]    
+        print(u'*Topic {}\n- {}'.format(i, ' '.join(topN_words)))  
+        # 文档-主题分布
+    
+    doc_topic = model.doc_topic_ 
+    #print("type(doc_topic): {}".format(type(doc_topic)))  
+    #print("shape: {}".format(doc_topic.shape))
+    label = []        
+    for i in range(doc_topic.shape[0]):  
+        #print(doc_topic[i])
+        topic_most_pr = doc_topic[i].argmax()  
+        label.append(topic_most_pr)  
+        #print("doc: {} topic: {}".format(i, topic_most_pr))  
+    c = collections.Counter(label)
+    print(c)
