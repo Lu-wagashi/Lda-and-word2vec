@@ -42,7 +42,7 @@ with open('fencioutput.txt',"w",encoding = 'UTF-8') as w:
                        if len(line) > 2:
                            w.write(line)
 
-fW = open('fencioutput1.txt','w',encoding = 'UTF-8')
+fW = open('fencioutput.txt','w',encoding = 'UTF-8')
 fW.write(' '.join(text_split_no))
 fW.close()
 
@@ -56,7 +56,7 @@ for x, w in anls.extract_tags(text_split_no_str, topK=200, withWeight=True):
 keywords = ' '.join(keywords)   #转为str
 print(keywords)
 print("基于词频统计结果")
-txt = open("fencioutput1.txt", "r", encoding="UTF-8").read()
+txt = open("fencioutput.txt", "r", encoding="UTF-8").read()
 words = jieba.cut(txt)
 counts = {}
 for word in words:
@@ -74,7 +74,7 @@ for i in range(33):
 wc=WordCloud(
     background_color="white",
     max_words=200,
-    mask=bg,            #设置词云形状
+    mask=None,            #设置词云形状,或者"mask=bg,"生成指定bg图
     max_font_size=60,
     scale=16,
     random_state=42,
